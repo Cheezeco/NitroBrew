@@ -6,10 +6,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using NitroBrew.Extensions;
 
 namespace NitroBrew
 {
-    public class IncludeBuilder<T>
+    public class IncludeBuilder<T> where T : class
     {
         private readonly List<IncludeProperty> _includes;
 
@@ -23,65 +24,88 @@ namespace NitroBrew
             if (!(expression.Body is MemberExpression)) return this;
 
             var type = typeof(T);
-            var propType = typeof(TProperty);
+            var propertyType = typeof(TProperty);
 
-            if (propType.IsPrimitive && !typeof(IEnumerable).IsAssignableFrom(propType)) return this;
+            if (propertyType.IsPrimitiveType() && !propertyType.IsEnumerableType()) return this;
 
-            var propInfo = type.GetProperties().FirstOrDefault(x => x.PropertyType == propType);
+            var typeProperties = type.GetProperties();
+
+            var propertyInfo = typeProperties.FindProperty(propertyType);
             var relationship = Relationship.OneToOne;
             var storedProc = string.Empty;
             var keyParameterName = string.Empty;
-            var isCustom = false;
+            var usesCustomInclude = false;
 
-            if (typeof(IEnumerable).IsAssignableFrom(propType))
+            if (propertyType.IsEnumerableType())
             {
-                var isManyToMany = propType.GenericTypeArguments[0].GetProperties().Any(x => typeof(IEnumerable).IsAssignableFrom(x.PropertyType)
-                                                                     && x.PropertyType.GenericTypeArguments.Length > 0
-                                                                     && x.PropertyType.GenericTypeArguments[0].Name == type.Name);
+                var isManyToMany = propertyType.GetEnumerableGenericArgument(type) != null;
 
-                keyParameterName = type.GetProperties()
-                           .FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null).Name;
-                if (isManyToMany)
-                {
-                    relationship = Relationship.ManyToMany;
-                    storedProc = type.GetProperties().FirstOrDefault(x => x.PropertyType == propType).GetCustomAttribute<BridgeTableProcAttribute>().StoredProcedure;
-
-                }
-                else
-                {
-                    relationship = Relationship.OneToMany;
-                    storedProc = type.GetProperties().FirstOrDefault(x => x.PropertyType == propType).GetCustomAttribute<OneToManyProcAttribute>().StoredProcedure;
-                }
+                IncludeEnumerableProperty(typeProperties, isManyToMany, out relationship, out storedProc,
+                    out keyParameterName);
             }
             else
             {
-                var customIncludeAttribute = type.GetProperties().FirstOrDefault(x => x.PropertyType == propType).GetCustomAttribute<CustomIncludeProcAttribute>();
-                if (customIncludeAttribute != null)
-                {
-                    storedProc = customIncludeAttribute.StoredProcedure;
-                    keyParameterName = type.GetProperties().FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null).Name;
-                    isCustom = true;
-                }
-                else
-                {
-                    storedProc = propType.GetCustomAttribute<GetStoredProcAttribute>().StoredProcedure;
-                    keyParameterName = propType
-                        .GetProperties()
-                        .FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null)
-                        .Name;
-                }
+                IncludeProperty(typeProperties, propertyType, out keyParameterName, out storedProc,
+                    ref usesCustomInclude);
             }
 
-            _includes.Add(new IncludeProperty()
+            var includeProperty = new IncludeProperty()
             {
                 KeyParameterName = keyParameterName,
                 StoredProcedure = storedProc,
-                PropertyInfo = propInfo,
+                PropertyInfo = propertyInfo,
                 Relationship = relationship,
-                IsCustom = isCustom
-            });
+                IsCustom = usesCustomInclude
+            };
+
+            if (!IsValidIncludeProperty(includeProperty)) return this;
+
+            _includes.Add(includeProperty);
 
             return this;
+        }
+
+        private static void IncludeProperty(PropertyInfo[] typeProperties, Type propertyType,
+            out string keyParameterName, out string storedProc, ref bool usesCustomInclude)
+        {
+            var customIncludeAttribute = typeProperties.GetCustomAttribute<CustomIncludeProcAttribute>();
+
+            if (customIncludeAttribute != null)
+            {
+                storedProc = customIncludeAttribute.StoredProcedure;
+                keyParameterName = typeProperties.GetCustomAttributePropertyName<EntityKeyAttribute>();
+                usesCustomInclude = true;
+            }
+            else
+            {
+                storedProc = propertyType.GetCustomAttribute<GetStoredProcAttribute>().StoredProcedure;
+                keyParameterName = propertyType.GetProperties()
+                    .GetCustomAttributePropertyName<EntityKeyAttribute>();
+            }
+        }
+
+        private static void IncludeEnumerableProperty(PropertyInfo[] typeProperties, bool isManyToMany,
+            out Relationship relationship, out string storedProc, out string keyParameterName)
+        {
+            keyParameterName = typeProperties.GetCustomAttributePropertyName<EntityKeyAttribute>();
+
+            if (isManyToMany)
+            {
+                relationship = Relationship.ManyToMany;
+                storedProc = typeProperties.GetCustomAttribute<BridgeTableProcAttribute>().StoredProcedure ?? "";
+            }
+            else
+            {
+                relationship = Relationship.OneToMany;
+                storedProc = typeProperties.GetCustomAttribute<OneToManyProcAttribute>().StoredProcedure ?? "";
+            }
+        }
+
+        private static bool IsValidIncludeProperty(IncludeProperty includeProperty)
+        {
+            return !string.IsNullOrWhiteSpace(includeProperty.KeyParameterName)
+                   && !string.IsNullOrWhiteSpace(includeProperty.StoredProcedure)
+                   && includeProperty.PropertyInfo != null;
         }
 
         internal List<IncludeProperty> Build()
