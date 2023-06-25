@@ -8,47 +8,68 @@ namespace NitroBrew
 {
     public class Cache
     {
-        public TimeSpan ItemLifeSpan { get; set; } = TimeSpan.FromSeconds(30);
+        public TimeSpan ItemLifeSpan
+        {
+            get
+            {
+                lock (_lock) return _itemLifeSpan;
+            }
+            set
+            {
+                lock (_lock)
+                {
+                    _itemLifeSpan = value;
+                }
+            }
+        }
 
         private readonly Dictionary<string, CacheItem> _cacheItems;
-
+        private object _lock;
+        private TimeSpan _itemLifeSpan = TimeSpan.FromSeconds(30);
 
         public Cache()
         {
             _cacheItems = new Dictionary<string, CacheItem>();
+            _lock = new object();
         }
 
         public void Add(object key, object value)
         {
-            var copy = value.CreateCopy();
-
-            if (copy is null) return;
-
-            var isEnumerable = value.GetType().IsEnumerableType();
-
-            if (!TryGet(key, isEnumerable, out CacheItem item))
+            lock (_lock)
             {
-                var props = SeparateProperties(GetKey(key, isEnumerable), value);
-                foreach (var prop in props)
+                var copy = value.CreateCopy();
+
+                if (copy is null) return;
+
+                var isEnumerable = value.GetType().IsEnumerableType();
+
+                if (!TryGet(key, isEnumerable, out CacheItem item))
                 {
-                    _cacheItems.Add(
-                        GetKey(prop.Key, prop.Value.GetType().IsEnumerableType()), new CacheItem(prop.Value));
+                    var props = SeparateProperties(GetKey(key, isEnumerable), value);
+                    foreach (var prop in props)
+                    {
+                        _cacheItems.Add(
+                            GetKey(prop.Key, prop.Value.GetType().IsEnumerableType()), new CacheItem(prop.Value));
+                    }
+
+                    _cacheItems.Add(GetKey(key, isEnumerable), new CacheItem(copy));
                 }
 
-                _cacheItems.Add(GetKey(key, isEnumerable), new CacheItem(copy));
-            }
+                if (item.IsNotNull())
+                {
+                    item.Value = copy;
+                }
 
-            if (item.IsNotNull())
-            {
-                item.Value = copy;
+                RemoveStaleItems();
             }
-
-            RemoveStaleItems();
         }
 
         public void Remove(object key, Type type)
         {
-            _cacheItems.Remove(GetKey(key, type.IsEnumerableType()));
+            lock (_lock)
+            {
+                _cacheItems.Remove(GetKey(key, type.IsEnumerableType()));
+            }
         }
 
         public void Remove<T>(object key)
@@ -81,10 +102,13 @@ namespace NitroBrew
 
         public bool TryGet(object key, bool isEnumerable, out object value)
         {
-            TryGet(key, isEnumerable, out CacheItem item);
-            value = item?.Value;
+            lock (_lock)
+            {
+                TryGet(key, isEnumerable, out CacheItem item);
+                value = item?.Value;
 
-            RemoveStaleItems();
+                RemoveStaleItems();
+            }
 
             return value.IsNotNull();
         }
@@ -96,7 +120,10 @@ namespace NitroBrew
 
         public void ClearCache()
         {
-            _cacheItems.Clear();
+            lock (_lock)
+            {
+                _cacheItems.Clear();
+            }
         }
 
         private void RemoveStaleItems()
