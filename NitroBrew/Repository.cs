@@ -8,16 +8,24 @@ using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using NitroBrew.Extensions;
 
 namespace NitroBrew
 {
     public class Repository
     {
         private readonly string _connectionString;
+        private readonly Cache _cache;
 
         public Repository(string connectionString)
         {
             _connectionString = connectionString;
+        }
+
+        public Repository(string connectionString, Cache cache)
+        {
+            _connectionString = connectionString;
+            _cache = cache;
         }
 
         public void LoadIncludes<T>(IEnumerable<T> entities, IncludeBuilder<T> includeBuilder) where T : class
@@ -51,7 +59,8 @@ namespace NitroBrew
             }
         }
 
-        private void LoadIncludes<T>(T entity, IncludeBuilder<T> includeBuilder, IDbConnection connection) where T : class
+        private void LoadIncludes<T>(T entity, IncludeBuilder<T> includeBuilder, IDbConnection connection)
+            where T : class
         {
             if (includeBuilder is null) return;
 
@@ -76,8 +85,9 @@ namespace NitroBrew
                     type = prop.PropertyInfo.PropertyType;
                 }
 
-                var propEntity = InvokeGet(type, method, prop.StoredProcedure, prop.KeyParameterName, prop.Id, connection);
-                prop.PropertyInfo.SetValue(entity, propEntity);
+                var value = InvokeGet(type, method, prop.StoredProcedure, prop.KeyParameterName, prop.Id,
+                    connection);
+                prop.PropertyInfo.SetValue(entity, value);
             }
         }
 
@@ -115,12 +125,14 @@ namespace NitroBrew
 
                 var storedProc = GetStoredProc<T, GetAllStoredProcAttribute>();
 
-                var queryResult = connection.Query(storedProc, commandType: CommandType.StoredProcedure).Cast<IDictionary<string, object>>();
+                var queryResult = connection.Query(storedProc, commandType: CommandType.StoredProcedure)
+                    .Cast<IDictionary<string, object>>();
                 var entities = Parse<T>(queryResult);
 
                 foreach (var entity in entities)
                 {
                     LoadIncludes(entity, includeBuilder, connection);
+                    _cache?.Add(GetKey(entity), entity);
                 }
 
                 connection.Close();
@@ -137,10 +149,13 @@ namespace NitroBrew
             {
                 connection.Open();
 
-                connection.ExecuteScalar(storedProc, CreateDynamicParameters(entity, true), commandType: CommandType.StoredProcedure);
+                connection.ExecuteScalar(storedProc, CreateDynamicParameters(entity, true),
+                    commandType: CommandType.StoredProcedure);
 
                 connection.Close();
             }
+
+            _cache?.Add(GetKey(entity), entity);
         }
 
         public int Insert<T>(T entity) where T : class
@@ -151,9 +166,12 @@ namespace NitroBrew
             {
                 connection.Open();
 
-                var id = connection.ExecuteScalar<int>(storedProc, CreateDynamicParameters(entity), commandType: CommandType.StoredProcedure);
+                var id = connection.ExecuteScalar<int>(storedProc, CreateDynamicParameters(entity),
+                    commandType: CommandType.StoredProcedure);
 
                 connection.Close();
+
+                _cache?.Add(id, entity);
 
                 return id;
             }
@@ -168,7 +186,7 @@ namespace NitroBrew
                 connection.Open();
 
                 var keyParameterName = typeof(T).GetProperties()
-                                                .FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null).Name;
+                    .FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null).Name;
                 var parameters = new DynamicParameters();
                 parameters.Add(keyParameterName, id);
 
@@ -176,26 +194,49 @@ namespace NitroBrew
 
                 connection.Close();
             }
+
+            _cache?.Remove<T>(id);
         }
 
         private T Get<T>(string storedProc, string keyParameterName, int id, IDbConnection connection) where T : class
         {
+            if (_cache.IsNotNull() && _cache.TryGet(id, out T value))
+            {
+                if (value.IsNotNull()) return value;
+            }
+
             var parameters = new DynamicParameters();
             parameters.Add(keyParameterName, id);
 
-            var queryResult = connection.QuerySingleOrDefault(storedProc, parameters, commandType: CommandType.StoredProcedure);
+            var queryResult =
+                connection.QuerySingleOrDefault(storedProc, parameters, commandType: CommandType.StoredProcedure);
 
-            return Parse<T>(queryResult as IDictionary<string, object>);
+            var parsedValue = Parse<T>(queryResult as IDictionary<string, object>);
+
+            _cache?.Add(id, parsedValue);
+
+            return parsedValue;
         }
 
-        private IEnumerable<T> GetMany<T>(string storedProc, string keyParameterName, int id, IDbConnection connection) where T : class
+        private IEnumerable<T> GetMany<T>(string storedProc, string keyParameterName, int id, IDbConnection connection)
+            where T : class
         {
+            if (_cache.IsNotNull() && _cache.TryGet(id, out IEnumerable<T> value))
+            {
+                if (value.IsNotNull()) return value;
+            }
+
             var parameters = new DynamicParameters();
             parameters.Add(keyParameterName, id);
 
-            var queryResult = connection.Query(storedProc, parameters, commandType: CommandType.StoredProcedure).Cast<IDictionary<string, object>>();
+            var queryResult = connection.Query(storedProc, parameters, commandType: CommandType.StoredProcedure)
+                .Cast<IDictionary<string, object>>();
 
-            return Parse<T>(queryResult);
+            var parsedValue = Parse<T>(queryResult);
+
+            _cache?.Add(id, parsedValue);
+
+            return parsedValue;
         }
 
         #region Helpers
@@ -233,16 +274,18 @@ namespace NitroBrew
             return entity;
         }
 
-        private T InvokeGet<T>(MethodInfo method, string storedProc, string keyParameterName, int id, IDbConnection connection) where T : class
+        private T InvokeGet<T>(MethodInfo method, string storedProc, string keyParameterName, int id,
+            IDbConnection connection) where T : class
         {
             return method.MakeGenericMethod(new Type[] { typeof(T) })
-                         .Invoke(this, new object[] { storedProc, keyParameterName, id, connection }) as T;
+                .Invoke(this, new object[] { storedProc, keyParameterName, id, connection }) as T;
         }
 
-        private object InvokeGet(Type type, MethodInfo method, string storedProc, string keyParameterName, int id, IDbConnection connection)
+        private object InvokeGet(Type type, MethodInfo method, string storedProc, string keyParameterName, int id,
+            IDbConnection connection)
         {
             return method.MakeGenericMethod(new Type[] { type })
-                         .Invoke(this, new object[] { storedProc, keyParameterName, id, connection });
+                .Invoke(this, new object[] { storedProc, keyParameterName, id, connection });
         }
 
         private MethodInfo FindPrivateMethod(string methodName)
@@ -262,7 +305,9 @@ namespace NitroBrew
 
                 var attributes = prop.GetCustomAttributes();
 
-                if (!includeId && attributes.Any(x => x.GetType() == typeof(EntityKeyAttribute) || x.GetType() == typeof(IgnorePropertyAttribute))) continue;
+                if (!includeId && attributes.Any(x =>
+                        x.GetType() == typeof(EntityKeyAttribute) || x.GetType() == typeof(IgnorePropertyAttribute)))
+                    continue;
 
                 var columnNameAttribute = attributes.FirstOrDefault(x => x.GetType() == typeof(ColumnNameAttribute));
                 string columnName = prop.Name;
@@ -295,20 +340,21 @@ namespace NitroBrew
             var includes = includeBuilder.Build();
             foreach (var include in includes)
             {
-                if (include.Relationship == Relationship.ManyToMany || include.Relationship == Relationship.OneToMany || include.IsCustom)
+                if (include.Relationship == Relationship.ManyToMany || include.Relationship == Relationship.OneToMany ||
+                    include.IsCustom)
                 {
                     include.Id = (int)typeof(T).GetProperties()
-                           .FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null)
-                           .GetValue(entity);
+                        .FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null)
+                        .GetValue(entity);
                 }
                 else
                 {
                     include.Id = (int)typeof(T).GetProperties()
-                           .FirstOrDefault(x => x.GetCustomAttribute<IdForEntityAttribute>() != null
-                                                && x.GetCustomAttribute<IdForEntityAttribute>().PropertyName == include.PropertyInfo.Name)
-                           .GetValue(entity);
+                        .FirstOrDefault(x => x.GetCustomAttribute<IdForEntityAttribute>() != null
+                                             && x.GetCustomAttribute<IdForEntityAttribute>().PropertyName ==
+                                             include.PropertyInfo.Name)
+                        .GetValue(entity);
                 }
-
             }
 
             return includes;
@@ -321,9 +367,20 @@ namespace NitroBrew
             var type = typeof(T);
             mainEntity.StoredProcedure = GetStoredProc<T, GetStoredProcAttribute>();
             mainEntity.KeyParameterName = type.GetProperties()
-                                              .FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null).Name;
+                .FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>() != null).Name;
 
             return mainEntity;
+        }
+
+        private int? GetKey<T>(T entity) where T : class
+        {
+            var type = typeof(T);
+            var entityKeyProperty =
+                type.GetProperties().FirstOrDefault(x => x.GetCustomAttribute<EntityKeyAttribute>().IsNotNull());
+
+            if (entityKeyProperty is null) return -1;
+
+            return entityKeyProperty.GetValue(entity) as int?;
         }
 
         #endregion
