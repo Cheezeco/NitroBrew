@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,7 +10,7 @@ namespace NitroBrew.Extensions
     {
         internal static bool IsEnumerableType(this Type type)
         {
-            return typeof(IEnumerable<>).IsAssignableFrom(type);
+            return typeof(IEnumerable).IsAssignableFrom(type);
         }
 
         internal static bool IsPrimitiveType(this Type type)
