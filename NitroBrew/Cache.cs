@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using NitroBrew.Attributes;
 using NitroBrew.Extensions;
 
 namespace NitroBrew
@@ -25,7 +26,7 @@ namespace NitroBrew
 
         private readonly Dictionary<string, CacheItem> _cacheItems;
         private object _lock;
-        private TimeSpan _itemLifeSpan = TimeSpan.FromSeconds(30);
+        private TimeSpan _itemLifeSpan = TimeSpan.FromSeconds(60);
 
         public Cache()
         {
@@ -41,18 +42,19 @@ namespace NitroBrew
 
                 if (copy is null) return;
 
-                var isEnumerable = value.GetType().IsEnumerableType();
+                //var isEnumerable = value.GetType().IsEnumerableType();
+                var valueType = value.GetType();
 
-                if (!TryGet(key, isEnumerable, out CacheItem item))
+                if (!TryGet(key, valueType, out CacheItem item))
                 {
-                    var props = SeparateProperties(GetKey(key, isEnumerable), value);
-                    foreach (var prop in props)
-                    {
-                        _cacheItems.Add(
-                            GetKey(prop.Key, prop.Value.GetType().IsEnumerableType()), new CacheItem(prop.Value));
-                    }
+                    //var props = SeparateProperties(GetKey(key, isEnumerable), value);
+                    //foreach (var prop in props)
+                    //{
+                    //    _cacheItems.Add(
+                    //        GetKey(prop.Key, prop.Value.GetType().IsEnumerableType()), new CacheItem(prop.Value));
+                    //}
 
-                    _cacheItems.Add(GetKey(key, isEnumerable), new CacheItem(copy));
+                    _cacheItems.Add(GetKey(key, valueType), new CacheItem(copy));
                 }
 
                 if (item.IsNotNull())
@@ -68,7 +70,7 @@ namespace NitroBrew
         {
             lock (_lock)
             {
-                _cacheItems.Remove(GetKey(key, type.IsEnumerableType()));
+                _cacheItems.Remove(GetKey(key, type));
             }
         }
 
@@ -79,7 +81,7 @@ namespace NitroBrew
 
         public object Get(object key, Type type)
         {
-            TryGet(key, type.IsEnumerableType(), out object value);
+            TryGet(key, type, out object value);
 
             return value;
         }
@@ -93,18 +95,18 @@ namespace NitroBrew
 
         public bool TryGet<T>(object key, out T value) where T : class
         {
-            var success = TryGet(key, typeof(T).IsEnumerableType(), out object item);
+            var success = TryGet(key, typeof(T), out object item);
 
             value = item as T;
 
             return success;
         }
 
-        public bool TryGet(object key, bool isEnumerable, out object value)
+        public bool TryGet(object key, Type type, out object value)
         {
             lock (_lock)
             {
-                TryGet(key, isEnumerable, out CacheItem item);
+                TryGet(key, type, out CacheItem item);
                 value = item?.Value;
 
                 RemoveStaleItems();
@@ -113,9 +115,9 @@ namespace NitroBrew
             return value.IsNotNull();
         }
 
-        private bool TryGet(object key, bool isEnumerable, out CacheItem item)
+        private bool TryGet(object key, Type type, out CacheItem item)
         {
-            return _cacheItems.TryGetValue(GetKey(key, isEnumerable), out item);
+            return _cacheItems.TryGetValue(GetKey(key, type), out item);
         }
 
         public void ClearCache()
@@ -128,7 +130,8 @@ namespace NitroBrew
 
         private void RemoveStaleItems()
         {
-            foreach (var staleItem in _cacheItems.Where(pair => IsStale(pair.Value)))
+            var staleItems = _cacheItems.Where(pair => IsStale(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value);
+            foreach (var staleItem in staleItems)
             {
                 _cacheItems.Remove(staleItem.Key);
             }
@@ -139,33 +142,9 @@ namespace NitroBrew
             return item.GetTimeSinceUpdate() > ItemLifeSpan;
         }
 
-        private static IEnumerable<(object Key, object Value)> SeparateProperties(object key, object value)
+        private static string GetKey(object key, Type type)
         {
-            if (value is null) return new List<(object Key, object Value)>();
-
-            var type = value.GetType();
-            var properties = type.GetProperties();
-
-            var separatedProperties = new List<(object Key, object Value)>(properties.Length);
-
-            foreach (var property in properties)
-            {
-                if (property.PropertyType.IsPrimitiveType()) continue;
-
-                var propertyValue = property.GetValue(value);
-
-                if (propertyValue is null) continue;
-
-                separatedProperties.AddRange(SeparateProperties(GetKey(key, value.GetType().IsEnumerableType()),
-                    property.PropertyType.IsEnumerableType() ? propertyValue : property.GetValue(value)));
-            }
-
-            return separatedProperties;
-        }
-
-        private static string GetKey(object key, bool isEnumerable)
-        {
-            return $"{key}:{isEnumerable}";
+            return $"{key}:{type}";
         }
     }
 
