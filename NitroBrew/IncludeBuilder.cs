@@ -68,7 +68,7 @@ namespace NitroBrew
         private static void IncludeProperty(PropertyInfo[] typeProperties, Type propertyType,
             out string keyParameterName, out string storedProc, ref bool usesCustomInclude)
         {
-            var customIncludeAttribute = typeProperties.GetCustomAttribute<CustomIncludeProcAttribute>();
+            var customIncludeAttribute = propertyType.GetCustomAttribute<CustomIncludeProcAttribute>();
 
             if (customIncludeAttribute != null)
             {
