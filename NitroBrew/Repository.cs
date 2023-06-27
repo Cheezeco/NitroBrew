@@ -261,12 +261,18 @@ namespace NitroBrew
             {
                 var ignoreAttribute = prop.GetCustomAttribute<IgnorePropertyAttribute>();
                 var columnNameAttribute = prop.GetCustomAttribute<ColumnNameAttribute>();
+                var useTypeAttribute = prop.GetCustomAttribute<UseTypeAttribute>();
 
                 if (ignoreAttribute != null) continue;
 
                 var name = columnNameAttribute != null ? columnNameAttribute.Name : prop.Name;
 
                 if (values is null || !values.TryGetValue(name, out var value)) continue;
+
+                if (useTypeAttribute.IsNotNull())
+                {
+                    value = value.ConvertTo(useTypeAttribute.TypeToUse);
+                }
 
                 prop.SetValue(entity, value);
             }
