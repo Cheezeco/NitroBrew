@@ -25,5 +25,29 @@ namespace NitroBrew.Extensions
 
             return type.GetProperties().GetPropertyWithMatchingGenericType(typeToFind);
         }
+
+        internal static T ConvertTo<T>(this object value) where T : class
+        {
+            var convertedValue = value.ConvertTo(typeof(T));
+
+            return convertedValue is null ? null : (T)convertedValue;
+        }
+
+        internal static object ConvertTo(this object value, Type type)
+        {
+            var converter = TypeDescriptor.GetConverter(type);
+
+            if (converter is null || !converter.CanConvertFrom(value.GetType())) return null;
+
+            try
+            {
+                return converter.ConvertFrom(value);
+            }
+            catch
+            {
+                return null;
+            }
+
+        }
     }
 }
