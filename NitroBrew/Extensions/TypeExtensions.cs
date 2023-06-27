@@ -27,6 +27,18 @@ namespace NitroBrew.Extensions
             return type.GetProperties().GetPropertyWithMatchingGenericType(typeToFind);
         }
 
+        internal static bool CanConvertTo<T>(this object value) where T : class
+        {
+            return value.CanConvertTo(typeof(T));
+        }
+
+        internal static bool CanConvertTo(this object value, Type type)
+        {
+            var converter = TypeDescriptor.GetConverter(type);
+
+            return converter.CanConvertFrom(type);
+        }
+
         internal static T ConvertTo<T>(this object value) where T : class
         {
             var convertedValue = value.ConvertTo(typeof(T));
@@ -38,7 +50,7 @@ namespace NitroBrew.Extensions
         {
             var converter = TypeDescriptor.GetConverter(type);
 
-            if (converter is null || !converter.CanConvertFrom(value.GetType())) return null;
+            if (!converter.CanConvertFrom(value.GetType())) return null;
 
             try
             {
@@ -48,7 +60,6 @@ namespace NitroBrew.Extensions
             {
                 return null;
             }
-
         }
     }
 }

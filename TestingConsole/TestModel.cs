@@ -15,8 +15,7 @@ namespace TestingConsole
     [DeleteStoredProc("DeleteTestModel")]
     internal class TestModel
     {
-        [EntityKey]
-        public int TestModelId { get; set; }
+        [EntityKey] public int TestModelId { get; set; }
 
         //[IdForEntity(nameof(TestModel2))]
         //public int TestModel2Id { get; set; }
@@ -25,16 +24,18 @@ namespace TestingConsole
         [OneToManyProc("TestModelOneToManyProc")]
         public List<TestModel2> TestModel2 { get; set; }
 
-        [IdForEntity(nameof(TestModel4))]
-        public int TestModel4Id { get; set; }
+        [IdForEntity(nameof(TestModel4))] public int TestModel4Id { get; set; }
 
         public TestModel4 TestModel4 { get; set; }
+
+
+        [CustomIncludeProc("OTM_TestModel_TestModels")]
+        public List<TestModel5> TestModels { get; set; }
 
         public string Name { get; set; }
     }
 
     public class Custom
     {
-
     }
 }

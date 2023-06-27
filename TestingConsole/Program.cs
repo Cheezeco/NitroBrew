@@ -12,8 +12,12 @@ namespace TestingConsole
     {
         static void Main(string[] args)
         {
+            var cache = new Cache();
 
-            var repository = new Repository("Data Source=localhost\\SQLExpress;Database=testdb;Integrated Security=sspi;Trust Server Certificate=True");
+            var repository =
+                new Repository(
+                    "Data Source=localhost\\SQLExpress;Database=testdb;Integrated Security=sspi;Trust Server Certificate=True",
+                    cache);
 
             //TestGet(repository);
             //TestInsert(repository);
@@ -21,8 +25,8 @@ namespace TestingConsole
             //TestGetAll(repository);
             //TestGetAllInclude(repository);
             //TestDelete(repository);
-            TestLoadIncludes(repository);
-
+            // TestLoadIncludes(repository);
+            TestIncludeEnumerable();
 
             Console.ReadKey();
         }
@@ -94,6 +98,22 @@ namespace TestingConsole
                 .Include(x => x.TestModel2);
 
             repository.LoadIncludes(entity, includeBuilder);
+
+            Console.ReadKey();
+        }
+
+        private static void TestIncludeEnumerable()
+        {
+            var cache = new Cache
+            {
+                ItemLifeSpan = TimeSpan.MaxValue
+            };
+
+            var enumerable = new List<TestModel>();
+
+            cache.Add(0, enumerable);
+
+            var test = cache.GetEnumerable<TestModel>(0);
 
             Console.ReadKey();
         }

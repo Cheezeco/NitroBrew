@@ -25,7 +25,7 @@ namespace NitroBrew
         }
 
         private readonly Dictionary<string, CacheItem> _cacheItems;
-        private object _lock;
+        private readonly object _lock;
         private TimeSpan _itemLifeSpan = TimeSpan.FromSeconds(60);
 
         public Cache()
@@ -42,18 +42,10 @@ namespace NitroBrew
 
                 if (copy is null) return;
 
-                //var isEnumerable = value.GetType().IsEnumerableType();
                 var valueType = value.GetType();
 
                 if (!TryGet(key, valueType, out CacheItem item))
                 {
-                    //var props = SeparateProperties(GetKey(key, isEnumerable), value);
-                    //foreach (var prop in props)
-                    //{
-                    //    _cacheItems.Add(
-                    //        GetKey(prop.Key, prop.Value.GetType().IsEnumerableType()), new CacheItem(prop.Value));
-                    //}
-
                     _cacheItems.Add(GetKey(key, valueType), new CacheItem(copy));
                 }
 
@@ -84,6 +76,18 @@ namespace NitroBrew
             TryGet(key, type, out object value);
 
             return value;
+        }
+
+        public IEnumerable<T> GetEnumerable<T>(object key) where T : class
+        {
+            var value = Get(key, typeof(IEnumerable<T>));
+
+            if (value.IsNotNull() && value.GetType().IsEnumerableType())
+            {
+                return (value as IEnumerable<object>)?.Cast<T>();
+            }
+
+            return null;
         }
 
         public T Get<T>(object key) where T : class
@@ -130,7 +134,8 @@ namespace NitroBrew
 
         private void RemoveStaleItems()
         {
-            var staleItems = _cacheItems.Where(pair => IsStale(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value);
+            var staleItems = _cacheItems.Where(pair => IsStale(pair.Value))
+                .ToDictionary(pair => pair.Key, pair => pair.Value);
             foreach (var staleItem in staleItems)
             {
                 _cacheItems.Remove(staleItem.Key);
@@ -144,7 +149,14 @@ namespace NitroBrew
 
         private static string GetKey(object key, Type type)
         {
-            return $"{key}:{type}";
+            var genericArguments = type.GetGenericArguments();
+            var typeName = type.Name;
+            if (genericArguments.Length > 0)
+            {
+                typeName = genericArguments[0].Name;
+            }
+
+            return $"{key}:{typeName}:{type.IsEnumerableType()}";
         }
     }
 

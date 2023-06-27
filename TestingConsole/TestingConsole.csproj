@@ -189,6 +189,7 @@
     <Compile Include="TestModel2.cs" />
     <Compile Include="TestModel3.cs" />
     <Compile Include="TestModel4.cs" />
+    <Compile Include="TestModel5.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
