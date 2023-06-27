@@ -40,8 +40,8 @@ namespace NitroBrew
             {
                 var isManyToMany = propertyType.GetEnumerableGenericArgument(type) != null;
 
-                IncludeEnumerableProperty(typeProperties, isManyToMany, out relationship, out storedProc,
-                    out keyParameterName);
+                IncludeEnumerableProperty(typeProperties, propertyType, isManyToMany, out relationship, out storedProc,
+                    out keyParameterName, ref usesCustomInclude);
             }
             else
             {
@@ -68,7 +68,8 @@ namespace NitroBrew
         private static void IncludeProperty(PropertyInfo[] typeProperties, Type propertyType,
             out string keyParameterName, out string storedProc, ref bool usesCustomInclude)
         {
-            var customIncludeAttribute = propertyType.GetCustomAttribute<CustomIncludeProcAttribute>();
+            var customIncludeAttribute = typeProperties.FindProperty(propertyType).GetCustomAttribute<CustomIncludeProcAttribute>();
+            //var customIncludeAttribute = propertyType.GetCustomAttribute<CustomIncludeProcAttribute>();
 
             if (customIncludeAttribute != null)
             {
@@ -84,10 +85,21 @@ namespace NitroBrew
             }
         }
 
-        private static void IncludeEnumerableProperty(PropertyInfo[] typeProperties, bool isManyToMany,
-            out Relationship relationship, out string storedProc, out string keyParameterName)
+        private static void IncludeEnumerableProperty(PropertyInfo[] typeProperties, Type propertyType, bool isManyToMany,
+            out Relationship relationship, out string storedProc, out string keyParameterName, ref bool usesCustomInclude)
         {
             keyParameterName = typeProperties.GetCustomAttributePropertyName<EntityKeyAttribute>();
+            var customIncludeAttribute = typeProperties.FindProperty(propertyType).GetCustomAttribute<CustomIncludeProcAttribute>();
+
+            if (customIncludeAttribute.IsNotNull())
+            {
+                storedProc = customIncludeAttribute.StoredProcedure;
+                keyParameterName = typeProperties.GetCustomAttributePropertyName<EntityKeyAttribute>();
+                usesCustomInclude = true;
+                relationship = Relationship.OneToOne;
+                return;
+            }
+
 
             if (isManyToMany)
             {
