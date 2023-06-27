@@ -221,10 +221,10 @@ namespace NitroBrew
         private IEnumerable<T> GetMany<T>(string storedProc, string keyParameterName, int id, IDbConnection connection)
             where T : class
         {
-            if (_cache.IsNotNull() && _cache.TryGet(id, out IEnumerable<T> value))
-            {
-                if (value.IsNotNull()) return value;
-            }
+            var value = _cache?.GetEnumerable<T>(id);
+
+            if (value.IsNotNull()) return value;
+
 
             var parameters = new DynamicParameters();
             parameters.Add(keyParameterName, id);
