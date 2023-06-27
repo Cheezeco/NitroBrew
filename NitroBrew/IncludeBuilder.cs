@@ -96,7 +96,7 @@ namespace NitroBrew
                 storedProc = customIncludeAttribute.StoredProcedure;
                 keyParameterName = typeProperties.GetCustomAttributePropertyName<EntityKeyAttribute>();
                 usesCustomInclude = true;
-                relationship = Relationship.OneToOne;
+                relationship = Relationship.OneToMany;
                 return;
             }
 
