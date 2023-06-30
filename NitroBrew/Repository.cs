@@ -110,6 +110,57 @@ namespace NitroBrew
             }
         }
 
+        public T GetValue<T>(string storedProc) where T : struct
+        {
+            using (var connection = GetDbConnection())
+            {
+                connection.Open();
+
+                var dynamicParams = new DynamicParameters();
+                dynamicParams.Add("result", dbType: DbType.Object, direction: ParameterDirection.ReturnValue);
+
+                connection.Execute(storedProc, dynamicParams, commandType: CommandType.StoredProcedure);
+
+                if (typeof(T) == typeof(bool))
+                {
+                    return (T)(object)(dynamicParams.Get<int>("result") != 0);
+                }
+
+                var value = dynamicParams.Get<T>("result");
+
+                connection.Close();
+
+                return value;
+            }
+        }
+
+        public T GetValue<T>(string storedProc, params (string Key, string Value)[] parameters) where T : struct
+        {
+            using (var connection = GetDbConnection())
+            {
+                connection.Open();
+
+                var dynamicParams = new DynamicParameters();
+
+                parameters.ForEach(x => dynamicParams.Add(x.Key, x.Value));
+                dynamicParams.Add("result", dbType: DbType.Object, direction: ParameterDirection.ReturnValue);
+
+                connection.Execute(storedProc, dynamicParams, commandType: CommandType.StoredProcedure);
+
+
+                if (typeof(T) == typeof(bool))
+                {
+                    return (T)(object)(dynamicParams.Get<int>("result") != 0);
+                }
+
+                var value = dynamicParams.Get<T>("result");
+
+                connection.Close();
+
+                return value;
+            }
+        }
+
         public T Get<T>(int id, IncludeBuilder<T> includeBuilder = null) where T : class
         {
             using (var connection = GetDbConnection())
