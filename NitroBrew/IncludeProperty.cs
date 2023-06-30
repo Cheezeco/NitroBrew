@@ -10,5 +10,6 @@ namespace NitroBrew
         public PropertyInfo PropertyInfo { get; set; }
         public Relationship Relationship { get; set; }
         public bool IsCustom { get; set; }
+        public bool UseEntityKey { get; set; }
     }
 }

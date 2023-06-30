@@ -204,12 +204,20 @@ namespace NitroBrew
             {
                 if (value.IsNotNull()) return value;
             }
+            dynamic queryResult;
 
-            var parameters = new DynamicParameters();
-            parameters.Add(keyParameterName, id);
+            if (keyParameterName == "-")
+            {
+                queryResult = connection.QuerySingleOrDefault(storedProc, commandType: CommandType.StoredProcedure);
+            }
+            else
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add(keyParameterName, id);
 
-            var queryResult =
-                connection.QuerySingleOrDefault(storedProc, parameters, commandType: CommandType.StoredProcedure);
+                queryResult = connection.QuerySingleOrDefault(storedProc, parameters, commandType: CommandType.StoredProcedure);
+            }
+
 
             var parsedValue = Parse<T>(queryResult as IDictionary<string, object>);
 
@@ -226,11 +234,21 @@ namespace NitroBrew
             if (value.IsNotNull()) return value;
 
 
-            var parameters = new DynamicParameters();
-            parameters.Add(keyParameterName, id);
+            dynamic queryResult;
 
-            var queryResult = connection.Query(storedProc, parameters, commandType: CommandType.StoredProcedure)
-                .Cast<IDictionary<string, object>>();
+            if (keyParameterName == "-")
+            {
+                queryResult = connection.Query(storedProc, commandType: CommandType.StoredProcedure)
+                    .Cast<IDictionary<string, object>>();
+            }
+            else
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add(keyParameterName, id);
+
+                queryResult = connection.Query(storedProc, parameters, commandType: CommandType.StoredProcedure)
+                    .Cast<IDictionary<string, object>>();
+            }
 
             var parsedValue = Parse<T>(queryResult);
 
@@ -346,6 +364,12 @@ namespace NitroBrew
             var includes = includeBuilder.Build();
             foreach (var include in includes)
             {
+                if (include.IsCustom && !include.UseEntityKey)
+                {
+                    include.Id = -1;
+                    continue;
+                }
+
                 if (include.Relationship == Relationship.ManyToMany || include.Relationship == Relationship.OneToMany ||
                     include.IsCustom)
                 {
