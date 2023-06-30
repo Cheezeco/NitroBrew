@@ -39,7 +39,7 @@ namespace NitroBrew.Extensions
 
         internal static bool CanConvertTo(this object value, Type type)
         {
-            var converter = TypeDescriptor.GetConverter(type);
+            var converter = TypeDescriptor.GetConverter(value.GetType());
 
             return converter.CanConvertFrom(type);
         }

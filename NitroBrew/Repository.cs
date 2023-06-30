@@ -88,6 +88,24 @@ namespace NitroBrew
                 var value = InvokeGet(type, method, prop.StoredProcedure, prop.KeyParameterName, prop.Id,
                     connection);
 
+                var propType = prop.PropertyInfo.PropertyType;
+                var valueType = value.GetType();
+
+                if (propType.IsListType() && !valueType.IsListType() && valueType.IsEnumerableType())
+                {
+                    var val = (IEnumerable<object>)value;
+
+                    var castMethod = typeof(Enumerable)
+                        .GetMethod("Cast").MakeGenericMethod(new[] { type });
+
+                    value = castMethod.Invoke(null, new object[] { val });
+
+                    var toListMethod = typeof(Enumerable)
+                        .GetMethod("ToList").MakeGenericMethod(new[] { type });
+
+                    value = toListMethod.Invoke(null, new object[] { value });
+                }
+
                 prop.PropertyInfo.SetValue(entity, value);
             }
         }

@@ -26,7 +26,7 @@ namespace NitroBrew
 
         private readonly Dictionary<string, CacheItem> _cacheItems;
         private readonly object _lock;
-        private TimeSpan _itemLifeSpan = TimeSpan.FromSeconds(60);
+        private TimeSpan _itemLifeSpan = TimeSpan.FromMinutes(5);
 
         public Cache()
         {
@@ -121,7 +121,16 @@ namespace NitroBrew
 
         private bool TryGet(object key, Type type, out CacheItem item)
         {
-            return _cacheItems.TryGetValue(GetKey(key, type), out item);
+            var cacheKey = GetKey(key, type);
+            if (_cacheItems.ContainsKey(cacheKey))
+            {
+                item = _cacheItems[cacheKey];
+                return true;
+            }
+            item = null;
+            return false;
+
+            //return _cacheItems.TryGetValue(GetKey(key, type), out item);
         }
 
         public void ClearCache()
@@ -156,7 +165,7 @@ namespace NitroBrew
                 typeName = genericArguments[0].Name;
             }
 
-            return $"{key}:{typeName}:{type.IsEnumerableType()}:{type.IsListType()}";
+            return $"{key}:{typeName}:{type.IsEnumerableType()}";
         }
     }
 
