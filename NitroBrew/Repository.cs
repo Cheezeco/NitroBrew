@@ -201,7 +201,7 @@ namespace NitroBrew
 
         private T Get<T>(string storedProc, string keyParameterName, int id, IDbConnection connection) where T : class
         {
-            if (_cache.IsNotNull() && _cache.TryGet(id + storedProc, out T value))
+            if (_cache.IsNotNull() && _cache.TryGet(id, out T value))
             {
                 if (value.IsNotNull()) return value;
             }
@@ -222,7 +222,7 @@ namespace NitroBrew
 
             var parsedValue = Parse<T>(queryResult as IDictionary<string, object>);
 
-            _cache?.Add(id + storedProc, parsedValue);
+            _cache?.Add(id, parsedValue);
 
             return parsedValue;
         }
@@ -230,7 +230,7 @@ namespace NitroBrew
         private IEnumerable<T> GetMany<T>(string storedProc, string keyParameterName, int id, IDbConnection connection)
             where T : class
         {
-            var value = _cache?.GetEnumerable<T>(id + storedProc);
+            var value = _cache?.GetEnumerable<T>(id);
 
             if (value.IsNotNull()) return value;
 
@@ -253,7 +253,7 @@ namespace NitroBrew
 
             var parsedValue = Parse<T>(queryResult);
 
-            _cache?.Add(id + storedProc, parsedValue);
+            _cache?.Add(id, parsedValue);
 
             return parsedValue;
         }
