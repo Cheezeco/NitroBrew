@@ -156,7 +156,7 @@ namespace NitroBrew
                 typeName = genericArguments[0].Name;
             }
 
-            return $"{key}:{typeName}:{type.IsEnumerableType()}";
+            return $"{key}:{typeName}:{type.IsEnumerableType()}:{type.IsListType()}";
         }
     }
 

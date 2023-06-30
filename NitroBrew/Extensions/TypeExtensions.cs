@@ -14,6 +14,11 @@ namespace NitroBrew.Extensions
             return typeof(IEnumerable).IsAssignableFrom(type);
         }
 
+        internal static bool IsListType(this Type type)
+        {
+            return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>);
+        }
+
         internal static bool IsPrimitiveType(this Type type)
         {
             return type.IsPrimitive || type == typeof(string) || type == typeof(decimal);
