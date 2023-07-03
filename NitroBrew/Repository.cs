@@ -215,6 +215,10 @@ namespace NitroBrew
         {
             var storedProc = GetStoredProc<T, UpdateStoredProcAttribute>();
 
+            var cachedEntity = _cache?.Get<T>(GetKey(entity));
+
+            if (cachedEntity.IsNotNull() && cachedEntity.ComparePrimitiveProperties(entity)) return;
+
             using (var connection = GetDbConnection())
             {
                 connection.Open();
