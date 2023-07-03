@@ -7,6 +7,22 @@ namespace NitroBrew.Extensions
 {
     public static class ObjectExtensions
     {
+        public static bool ComparePrimitiveProperties(this object value, object other)
+        {
+            if (value.GetType() != other.GetType()) return false;
+
+            var type = value.GetType();
+
+            foreach (var prop in type.GetProperties())
+            {
+                if (!prop.PropertyType.IsPrimitiveType() || prop.GetValue(value) == prop.GetValue(other)) continue;
+
+                return false;
+            }
+
+            return true;
+        }
+
         public static object CreateCopy(this object value)
         {
             if (value.GetType().IsEnumerableType())
