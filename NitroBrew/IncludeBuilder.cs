@@ -109,12 +109,12 @@ namespace NitroBrew
             if (isManyToMany)
             {
                 relationship = Relationship.ManyToMany;
-                storedProc = typeProperties.GetCustomAttribute<BridgeTableProcAttribute>().StoredProcedure ?? "";
+                storedProc = typeProperties.FirstOrDefault(x => x.PropertyType == propertyType)?.GetCustomAttribute<BridgeTableProcAttribute>()?.StoredProcedure ?? "";
             }
             else
             {
                 relationship = Relationship.OneToMany;
-                storedProc = typeProperties.GetCustomAttribute<OneToManyProcAttribute>().StoredProcedure ?? "";
+                storedProc = typeProperties.FirstOrDefault(x => x.PropertyType == propertyType)?.GetCustomAttribute<OneToManyProcAttribute>()?.StoredProcedure ?? "";
             }
         }
 
