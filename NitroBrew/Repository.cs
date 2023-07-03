@@ -236,8 +236,12 @@ namespace NitroBrew
             {
                 connection.Open();
 
-                var id = connection.ExecuteScalar<int>(storedProc, CreateDynamicParameters(entity),
-                    commandType: CommandType.StoredProcedure);
+                var dynamicParams = CreateDynamicParameters(entity);
+                dynamicParams.Add("result", dbType: DbType.Int32, direction: ParameterDirection.ReturnValue);
+
+                connection.Execute(storedProc, dynamicParams, commandType: CommandType.StoredProcedure);
+
+                var id = dynamicParams.Get<int>("result");
 
                 connection.Close();
 
