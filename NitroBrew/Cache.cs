@@ -156,6 +156,15 @@ namespace NitroBrew
             return item.GetTimeSinceUpdate() > ItemLifeSpan;
         }
 
+        private static bool TrySplitKey(string key, out string[] splitKey)
+        {
+            splitKey = key.Split(new string[] { ":" }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (splitKey.Length != 3) return false;
+
+            return true;
+        }
+
         private static string GetKey(object key, Type type)
         {
             var genericArguments = type.GetGenericArguments();
