@@ -269,7 +269,8 @@ namespace NitroBrew
                 connection.Close();
             }
 
-            _cache?.Remove<T>(id);
+            //_cache?.Remove<T>(id);
+            _cache?.Nuke<T>();
         }
 
         private T Get<T>(string storedProc, string keyParameterName, int id, IDbConnection connection) where T : class
