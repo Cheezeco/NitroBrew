@@ -58,6 +58,28 @@ namespace NitroBrew
             }
         }
 
+        public void Nuke(Type type)
+        {
+            lock (_lock)
+            {
+                var keysToRemove = new List<string>();
+
+                foreach (var kvp in _cacheItems)
+                {
+                    if (!TrySplitKey(kvp.Key, out var splitKey) || type.Name != splitKey[1]) continue;
+
+                    keysToRemove.Add(kvp.Key);
+                }
+
+                keysToRemove.ForEach(x => _cacheItems.Remove(x));
+            }
+        }
+
+        public void Nuke<T>()
+        {
+            Nuke(typeof(T));
+        }
+
         public void Remove(object key, Type type)
         {
             lock (_lock)
