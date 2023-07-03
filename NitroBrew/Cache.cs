@@ -26,7 +26,7 @@ namespace NitroBrew
 
         private readonly Dictionary<string, CacheItem> _cacheItems;
         private readonly object _lock;
-        private TimeSpan _itemLifeSpan = TimeSpan.FromMinutes(5);
+        private TimeSpan _itemLifeSpan = TimeSpan.FromMinutes(1);
 
         public Cache()
         {
