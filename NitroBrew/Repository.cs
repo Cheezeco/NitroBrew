@@ -305,7 +305,7 @@ namespace NitroBrew
         {
             var value = _cache?.GetEnumerable<T>(id);
 
-            if (value.IsNotNull()) return value;
+            if (value.IsNotNull() && value.Count() > 0) return value;
 
 
             dynamic queryResult;
