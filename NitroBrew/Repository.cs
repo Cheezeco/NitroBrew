@@ -404,7 +404,7 @@ namespace NitroBrew
 
             foreach (var prop in properties)
             {
-                if (!prop.PropertyType.IsPrimitive && prop.PropertyType != typeof(string)) continue;
+                if (!prop.PropertyType.IsPrimitiveType() && prop.PropertyType != typeof(Guid)) continue;
 
                 var attributes = prop.GetCustomAttributes();
 
