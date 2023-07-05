@@ -404,7 +404,7 @@ namespace NitroBrew
 
             foreach (var prop in properties)
             {
-                if (!prop.PropertyType.IsPrimitiveType() && prop.PropertyType != typeof(Guid)) continue;
+                if (!prop.PropertyType.IsPrimitiveType() && prop.PropertyType != typeof(Guid) && !prop.PropertyType.IsEnum) continue;
 
                 var attributes = prop.GetCustomAttributes();
 
