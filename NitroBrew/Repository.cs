@@ -408,9 +408,7 @@ namespace NitroBrew
 
                 var attributes = prop.GetCustomAttributes();
 
-                if (!includeId && attributes.Any(x =>
-                        x.GetType() == typeof(EntityKeyAttribute) || x.GetType() == typeof(IgnorePropertyAttribute)))
-                    continue;
+                if (attributes.Any(x => x.GetType() == typeof(IgnorePropertyAttribute)) || (!includeId && attributes.Any(x => x.GetType() == typeof(EntityKeyAttribute)))) continue;
 
                 var columnNameAttribute = attributes.FirstOrDefault(x => x.GetType() == typeof(ColumnNameAttribute));
                 string columnName = prop.Name;
