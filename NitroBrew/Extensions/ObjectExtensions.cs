@@ -54,7 +54,7 @@ namespace NitroBrew.Extensions
 
             foreach (var property in type.GetProperties())
             {
-                if (!property.PropertyType.IsPrimitiveType() && !property.PropertyType.IsEnum) continue;
+                if (!property.PropertyType.IsPrimitiveType() && !property.PropertyType.IsEnum && !property.PropertyType.IsArray) continue;
 
                 var propertyValue = property.GetValue(value);
 
