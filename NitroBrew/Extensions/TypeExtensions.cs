@@ -29,7 +29,7 @@ namespace NitroBrew.Extensions
             if (!IsEnumerableType(type) || type.GenericTypeArguments.Length != 1)
                 return null;
 
-            return type.GetProperties().GetPropertyWithMatchingGenericType(typeToFind);
+            return type.GenericTypeArguments[0].GetProperties().GetPropertyWithMatchingGenericType(typeToFind);
         }
 
         internal static bool CanConvertTo<T>(this object value) where T : class
